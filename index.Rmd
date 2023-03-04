@@ -1,0 +1,265 @@
+---
+title: "A3: SPL Library Checkouts"
+output: html_document
+---
+
+### Introduction
+
+In this report, I will be focusing on comparing publisher information, checkouts per month, and distribution type from 2018 to 2023. 
+
+I will be using the Seattle Public Library's checkouts data to answer the following questions:
+
+  - How has the number of checkouts by material type changed over time?
+
+  - How do the top 5 publishers compare in terms of checkouts over time?
+
+  - How do the top 5 publishers by checkouts compare in terms of distribution material type?
+
+  - What are the most checked out items from the top publishers
+
+### Summary Information 
+
+```{r, echo = FALSE, warning = FALSE, code = readLines("summary.R")}
+library(tidyverse)
+
+summary_df <- read.csv("c:/users/where/documents/publisher_df.csv", stringsAsFactors = FALSE)
+
+# Find the top 5 publishers by total checkouts
+top_5_publishers <- summary_df %>% 
+  group_by(Publisher) %>% 
+  summarise(TotalCheckouts = sum(Checkouts)) %>% 
+  arrange(desc(TotalCheckouts)) %>% 
+  head(5)
+
+# most checked out item (1-3 are WiFi and headphones)
+
+top_item <- summary_df %>% 
+  group_by(Title) %>% 
+  summarise(TotalCheckouts = sum(Checkouts)) %>% 
+  arrange(desc(TotalCheckouts)) %>% 
+  slice(4)
+
+top_item_title <- top_item %>%
+  pull(Title)
+
+top_item_checkouts <- top_item %>%
+  pull(TotalCheckouts)
+
+# Find the most checked out item for each publisher in the top 5
+top_5_items <- summary_df %>% 
+  filter(Publisher %in% top_5_publishers$Publisher) %>% 
+  group_by(Publisher, Title) %>% 
+  summarise(TotalCheckouts = sum(Checkouts)) %>% 
+  arrange(Publisher, desc(TotalCheckouts)) %>% 
+  group_by(Publisher) %>% 
+  slice(1)
+
+```
+
+In my analysis of the Seattle Public Library's checkouts data, I found that the number of checkouts for CDs and DVDs have been steadily decreasing since 2018. The number of checkouts for books has been heavily fluctuating since 2018. The number of checkouts for audiobooks and eBooks have been steadily increasing since 2018, with Audiobooks being the most checked out material type of 2023 so far.
+
+### Results
+
+The most checked out item from 2018-2023 was `r top_item_title` with `r top_item_checkouts` checkouts. 
+
+The top 5 publishers by checkouts are: 
+
+```{r, echo = FALSE, warning = FALSE, results = 'asis'}
+for (i in 1:nrow(top_5_publishers)) {
+  cat(paste0("- ", top_5_publishers$Publisher[i], " with ", top_5_publishers$TotalCheckouts[i], " total checkouts\n"))
+}
+```
+
+The top item for each of the top 5 publishers is: 
+
+```{r, echo = FALSE, message = FALSE, results = 'asis'}
+for (i in 1:nrow(top_5_items)) {
+  cat(paste0("- ", top_5_items$Publisher[i], ": ", top_5_items$Title[i], " with ", top_5_items$TotalCheckouts[i], " total checkouts\n"))
+}
+```
+
+### The Dataset
+
+  The dataset is collected and published by the Seattle Public Library. The dataset includes items that were checked out from the Seattle Public Library more than 5 times from 2018 to 2023. The dataset includes the following metadata: Material Type, Checkout Month/Year, Subject, Publisher, Publishing Year, Book Title, and ISBN. The data was collected by the Seattle Public Library's circulation department. It was collected to help the Seattle Public Library understand the types of materials that are being checked out by the public, as well as keep a record of what books are currently checked out. It includes 12 features and 816,354 observations.
+  
+  We might need to consider the ethical questions of using a dataset that excludes certain types of materials. For example, the dataset excludes items checked out less than 5 times. This could be problematic because it excludes items checked out less than 5 times, which could be a large portion of the library's collection. Additionally, we may need to consider what types of content are banned from libraries and why.
+
+  The data in this dataset is limited to the Seattle Public Library's collection. This means that the data is representative of only some of the Seattle population. For example, the dataset does not include items that were checked out less than 5 times. This could be problematic because it excludes items checked out less than 5 times, which could be a large portion of the library's collection. Additionally, the data in this dataset is not uniform and needs trimming to represent publisher information accurately. The subject category was hard to narrow down due to publishers having multiple branches and sloppy encoding.
+
+### Checkouts by Material Type
+
+This chart graphs checkouts from the top 5 material types by average checkouts from 2018-2023. The chart shows that the number of checkouts for CDs and DVDs has been steadily decreasing since 2018. The number of checkouts for books has been heavily fluctuating since 2018. The number of checkouts for audiobooks and eBooks has been steadily increasing since 2018, with audiobooks being the most checked-out material type of 2023 so far. I made this a line graph because I wanted to capture the change in checkouts by material type during COVID-19, and a line graph allowed me to easily visualize the trend.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, code = readLines("chart1.R")}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+
+# Read data
+publisher_df <- read.csv("c:/users/where/documents/publisher_df.csv", stringsAsFactors = FALSE)
+
+material_type_df <- publisher_df %>%
+  select(MaterialType, Checkouts, CheckoutDate)
+
+# find the top 5 material types by overall checkouts
+top_5_material_types <- material_type_df %>% 
+  group_by(MaterialType) %>%
+  summarise(TotalCheckouts = sum(Checkouts)) %>%
+  arrange(desc(TotalCheckouts)) %>%
+  head(5)
+
+material_type_df <- material_type_df %>%
+  filter(MaterialType %in% top_5_material_types$MaterialType)
+
+# Compute average checkouts 
+material_type_df <- material_type_df %>%
+  group_by(MaterialType, CheckoutDate) %>%
+  summarise(Checkouts = mean(Checkouts))
+
+material_type_df <- material_type_df %>%
+  rename(AverageCheckouts = Checkouts)
+material_type_df$MaterialType <- factor(material_type_df$MaterialType,
+  levels = c("BOOK", "EBOOK", "AUDIOBOOK", "SOUNDDISC", "VIDEODISC"),
+  labels = c("Books", "eBooks", "Audiobooks", "CDs", "DVDs"))
+
+# Convert CheckoutDate to date format
+
+material_type_df$CheckoutDate <- as.Date(material_type_df$CheckoutDate, format = "%Y-%m-%d")
+
+# Plot the data
+gg_material_type <- ggplot(material_type_df, aes(x = CheckoutDate, y = AverageCheckouts, color = MaterialType)) +
+  geom_line() + 
+  labs(x = "Checkout Year",
+    y = "Average Checkouts",
+    title = "Checkouts by Material Type Over Time",
+    subtitle = "Audiobook and eBook checkouts spiked during 2020 while Books, CD, and DVD checkouts saw plummeting checkout averages",
+    caption = "Data source: SPL Checkout Data") + 
+  scale_x_date(date_breaks = "1 year",
+    date_labels = "%Y") +
+  scale_color_manual(values = c("blue", "red", "green", "orange", "purple"),
+  labels = c("Audiobook", "Book", "eBook", "CD", "DVD") +
+  theme(plot.caption = element_text(hjust = 0.5, size = 10),
+        plot.title = element_text(hjust = 0.5, size = 20),
+        plot.subtitle = element_text(hjust = 0.5, size = 14),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 16),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(colour = "#d3d3d3", size = 0.5)))
+  
+ggplotly1 <- ggplotly(gg_material_type)
+
+# Show the plot
+ggplotly1
+```
+
+### Checkouts by Publisher
+
+This chart visualizes total checkouts by month for the top 5 publishers by overall checkouts. I included this because a line graph allows us to easily visualize the  popularity trend of each of the top 5 publishers over the last five years. The chart shows that the number of checkouts for each the top 5 publishers have been steadily increasing since 2018. Books on Tape, Inc. has been the most popular publisher since 2018, with the number of checkouts for this publisher increasing by 25,000 average checkouts per month from 2018 to 2023. Penguin Group (USA), Inc began as the most popular publisher in 2018 and had an extreme spike in late 2020. However, their checkout numbers fell drastically, and they are now the third most popular publisher.
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, code = readLines("chart2.R")}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+
+# read in the data
+pub2_df <- read.csv("c:/users/where/documents/publisher_df.csv", stringsAsFactors = FALSE)
+pub2_df <- pub2_df %>% select(Publisher, Checkouts, CheckoutDate)
+
+pub2_df$CheckoutDate <- as.Date(pub2_df$CheckoutDate, format = "%Y-%m-%d")
+
+# find the top 5 publishers by overall checkouts
+top_5_publishers <- pub2_df %>% 
+  group_by(Publisher) %>%
+  summarise(TotalCheckouts = sum(Checkouts)) %>%
+  arrange(desc(TotalCheckouts)) %>%
+  head(5)
+
+top_publishers_df <- pub2_df %>%
+  filter(Publisher %in% top_5_publishers$Publisher)
+
+# compute the sum of monthly checkouts for each publisher
+top_publishers_df <- top_publishers_df %>%
+  group_by(Publisher, CheckoutDate) %>%
+  summarise(Checkouts = sum(Checkouts))
+
+# create plot
+ggplotly2 <- ggplotly(ggplot(top_publishers_df,
+  aes(x = CheckoutDate,
+      y = Checkouts,
+      color = Publisher)) + 
+  geom_line() + 
+  scale_color_manual(values = c("blue", "red", "green", "orange", "purple")) + 
+  labs(x = "Checkout Month", y = "Checkouts",
+       title = "Monthly Checkouts for top 5 Publishers by Checkouts",
+       subtitle = "Data Source: SPL Materials checked out more than 5 times from 2018-2023") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") + 
+  scale_y_continuous(breaks = seq(0, max(top_publishers_df$Checkouts), by = 4000)))
+
+# plot
+ggplotly2
+```
+
+### Checkouts by year, material type and publisher
+
+Finally, I made a faceted scatterplot that graphed the checkout year by the checkout amount for each publisher. The color of the points represents the material type of the title.
+I chose a scatterplot because I thought that it would be interesting to see the relationship between the checkout year, the amount of checkouts and the material type. I felt that a scatterplot would create a very interesting visual between the three variables, and it would highlight anomalies and important outliers in the data. 
+
+Books on Tape is entirely made up of audiobooks, so it is not surprising that all of their checkouts are audiobooks. It is interesting that no publisher spiked in the same year. Most notably seen from the data, eBooks and Audiobooks titles have been spiking since COVID, and the number of checkouts for certain titles in these formats are thousands of checkouts above any other format during this time period.
+
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, code = readLines("chart3.R")}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(viridis)
+
+pub3_df <- read.csv("c:/users/where/documents/publisher_df.csv", stringsAsFactors = FALSE)
+
+pub3_df <- pub3_df %>% 
+  select(Publisher, Checkouts, MaterialType, Title, CheckoutDate)
+
+pub3_df$CheckoutDate <- as.Date(pub3_df$CheckoutDate, format = "%Y-%m-%d")
+
+top_5_publishers <- pub3_df %>% 
+  group_by(Publisher) %>%
+  summarise(TotalCheckouts = sum(Checkouts)) %>%
+  arrange(desc(TotalCheckouts)) %>%
+  head(5)
+
+pub3_df <- pub3_df %>%
+  filter(Publisher %in% top_5_publishers$Publisher)
+
+# Rename all rows in MaterialType column that are "ER, SOUNDDISC" to "SOUNDDISC"
+pub3_df$MaterialType <- gsub("ER, SOUNDDISC", "SOUNDDISC", pub3_df$MaterialType)
+
+# Rename "AUDIOBOOK" to "Audiobook", "BOOK" to "Book", "EBOOK" to "eBook", "SOUNDDISC" to "CD", and "REGPRINT" to "MAGAZINE"
+pub3_df$MaterialType <- gsub("AUDIOBOOK", "Audiobook", pub3_df$MaterialType)
+pub3_df$MaterialType <- gsub("BOOK", "Book", pub3_df$MaterialType)
+pub3_df$MaterialType <- gsub("EBOOK", "eBook", pub3_df$MaterialType)
+pub3_df$MaterialType <- gsub("SOUNDDISC", "CD", pub3_df$MaterialType)
+pub3_df$MaterialType <- gsub("SOUNDREC", "CD", pub3_df$MaterialType)
+pub3_df$MaterialType <- gsub("REGPRINT", "Magazine", pub3_df$MaterialType)
+
+ggplotly3 <- ggplot(data = pub3_df) +
+  geom_point(
+    mapping = aes(x = CheckoutDate, y = Checkouts, color = MaterialType),
+    position = "jitter"
+  ) +
+  facet_wrap(~Publisher) +
+  labs(
+    title = "Checkouts by Material Type and Year",
+    x = "Checkout Year",
+    y = "Checkouts",
+    color = "Material Type",
+    labels = c("Audiobook", "Book", "eBook", "CD", "DVD")
+  ) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(breaks = seq(0, max(pub3_df$Checkouts), by = 1000)) +
+  scale_color_viridis(discrete = T)
+
+ggplotly3 <- ggplotly3 %>%
+  ggplotly()
+
+ggplotly3
+
+```
