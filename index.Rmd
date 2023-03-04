@@ -253,7 +253,7 @@ ggplotly3 <- ggplot(data = pub3_df) +
     color = "Material Type",
     labels = c("Audiobook", "Book", "eBook", "CD", "DVD")
   ) +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   scale_y_continuous(breaks = seq(0, max(pub3_df$Checkouts), by = 1000)) +
   scale_color_viridis(discrete = T)
 
