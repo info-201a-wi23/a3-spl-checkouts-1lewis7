@@ -19,7 +19,7 @@ I will be using the Seattle Public Library's checkouts data to answer the follow
 
 ### Summary Information 
 
-```{r, echo = FALSE, warning = FALSE, code = readLines("summary.R")}
+```{r, echo = FALSE, message = FALSE, warning = FALSE, code = readLines("summary.R")}
 library(tidyverse)
 
 summary_df <- read.csv("c:/users/where/documents/publisher_df.csv", stringsAsFactors = FALSE)
